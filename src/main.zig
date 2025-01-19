@@ -27,6 +27,10 @@ const Cpu = struct {
     const TAX = 0xAA;
 
     pub fn interpret(self: *Cpu, program: []const u8) void {
+        if (program.len > std.math.maxInt(u16)) {
+            std.debug.panic("Program extends the allowed size of maximum memeory size, got {}\n", .{program.len});
+        }
+
         self.program_counter = 0;
         while (true) {
             const ops_code = program[self.program_counter];
@@ -82,13 +86,9 @@ pub fn main() !void {
 }
 
 test "0xA9 LDA - Load Accumulator" {
-    const test_allocator = std.testing.allocator;
-    var program = std.ArrayList(u8).init(test_allocator);
-    defer program.deinit();
     var cpu = Cpu.init();
 
-    try program.appendSlice(&[_]u8{ 0xA9, 0x05, 0x00 });
-    cpu.interpret(program.items);
+    cpu.interpret(&[_]u8{ 0xA9, 0x05, 0x00 });
 
     try std.testing.expect(cpu.register_A == 0x05);
     try std.testing.expect((cpu.status & 0b0000_0010) == 0);
@@ -96,14 +96,10 @@ test "0xA9 LDA - Load Accumulator" {
 }
 
 test "0xAA TAX - Transfer Accumulator to X" {
-    const test_allocator = std.testing.allocator;
-    var program = std.ArrayList(u8).init(test_allocator);
-    defer program.deinit();
     var cpu = Cpu.init();
 
-    try program.appendSlice(&[_]u8{ 0xAA, 0x00 });
     cpu.register_A = 10;
-    cpu.interpret(program.items);
+    cpu.interpret(&[_]u8{ 0xAA, 0x00 });
 
     try std.testing.expect(cpu.register_X == 10);
     try std.testing.expect((cpu.status & 0b0000_0010) == 0);
@@ -111,13 +107,9 @@ test "0xAA TAX - Transfer Accumulator to X" {
 }
 
 test "INX - Increment X Register" {
-    const test_allocator = std.testing.allocator;
-    var program = std.ArrayList(u8).init(test_allocator);
-    defer program.deinit();
     var cpu = Cpu.init();
 
-    try program.appendSlice(&[_]u8{ 0xE8, 0x00 });
-    cpu.interpret(program.items);
+    cpu.interpret(&[_]u8{ 0xE8, 0x00 });
 
     try std.testing.expect(cpu.register_X == 1);
     try std.testing.expect((cpu.status & 0b0000_0010) == 0);
@@ -125,26 +117,18 @@ test "INX - Increment X Register" {
 }
 
 test "INX overflow" {
-    const test_allocator = std.testing.allocator;
-    var program = std.ArrayList(u8).init(test_allocator);
-    defer program.deinit();
     var cpu = Cpu.init();
 
     cpu.register_X = 0xFF;
-    try program.appendSlice(&[_]u8{ 0xE8, 0xE8, 0x00 });
-    cpu.interpret(program.items);
+    cpu.interpret(&[_]u8{ 0xE8, 0xE8, 0x00 });
 
     try std.testing.expect(cpu.register_X == 1);
 }
 
 test "loads 0xC0 into X and increments by 1" {
-    const test_allocator = std.testing.allocator;
-    var program = std.ArrayList(u8).init(test_allocator);
-    defer program.deinit();
     var cpu = Cpu.init();
 
-    try program.appendSlice(&[_]u8{ 0xA9, 0xC0, 0xAA, 0xE8, 0x00 });
-    cpu.interpret(program.items);
+    cpu.interpret(&[_]u8{ 0xA9, 0xC0, 0xAA, 0xE8, 0x00 });
 
     try std.testing.expect(cpu.register_X == 0xC1);
 }
