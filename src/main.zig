@@ -26,39 +26,115 @@ const Instruction = struct { key: u8, value: OpCode };
 
 const Instructions = [_]Instruction{
     Instruction{
+        .key = 0x29,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.Immediate,
+            .bytes = 2,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x25,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x35,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.ZeroPageX,
+            .bytes = 2,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x2D,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x3D,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.AbsoluteX,
+            .bytes = 3,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x39,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.AbsoluteY,
+            .bytes = 3,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x21,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.IndirectX,
+            .bytes = 2,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    Instruction{
+        .key = 0x31,
+        .value = OpCode{
+            .mnemonic = "AND",
+            .addressing_mode = AddressingMode.IndirectY,
+            .bytes = 2,
+            .decodingFn = Cpu.AND,
+        },
+    },
+    //
+    Instruction{
         .key = 0x00,
         .value = OpCode{
             .mnemonic = "BRK",
             .addressing_mode = AddressingMode.None,
             .bytes = 1,
-            .decodingFn = Cpu.brk,
+            .decodingFn = Cpu.BRK,
         },
     },
+    //
     Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
             .addressing_mode = AddressingMode.None,
             .bytes = 1,
-            .decodingFn = Cpu.inx,
+            .decodingFn = Cpu.INX,
         },
     },
+    //
     Instruction{
         .key = 0xAA,
         .value = OpCode{
             .mnemonic = "TAX",
             .addressing_mode = AddressingMode.None,
             .bytes = 1,
-            .decodingFn = Cpu.tax,
+            .decodingFn = Cpu.TAX,
         },
     },
+    //
     Instruction{
         .key = 0xA9,
         .value = OpCode{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.Immediate,
             .bytes = 2,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -67,7 +143,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.ZeroPage,
             .bytes = 2,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -76,7 +152,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.ZeroPageX,
             .bytes = 2,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -85,7 +161,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.Absolute,
             .bytes = 3,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -94,7 +170,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.AbsoluteX,
             .bytes = 3,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -103,7 +179,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.AbsoluteY,
             .bytes = 3,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -112,7 +188,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.IndirectX,
             .bytes = 2,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
     Instruction{
@@ -121,16 +197,17 @@ const Instructions = [_]Instruction{
             .mnemonic = "LDA",
             .addressing_mode = AddressingMode.IndirectY,
             .bytes = 2,
-            .decodingFn = Cpu.lda,
+            .decodingFn = Cpu.LAD,
         },
     },
+    //
     Instruction{
         .key = 0x85,
         .value = OpCode{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.ZeroPage,
             .bytes = 2,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -139,7 +216,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.ZeroPageX,
             .bytes = 2,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -148,7 +225,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.Absolute,
             .bytes = 3,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -157,7 +234,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.AbsoluteX,
             .bytes = 3,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -166,7 +243,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.AbsoluteY,
             .bytes = 3,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -175,7 +252,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.IndirectX,
             .bytes = 2,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
     Instruction{
@@ -184,7 +261,7 @@ const Instructions = [_]Instruction{
             .mnemonic = "STA",
             .addressing_mode = AddressingMode.IndirectY,
             .bytes = 2,
-            .decodingFn = Cpu.sta,
+            .decodingFn = Cpu.STA,
         },
     },
 };
@@ -255,33 +332,39 @@ const Cpu = struct {
         };
     }
 
-    pub fn brk(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+    pub fn AND(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+        const address = cpu.next_address(mem, addressing_mode);
+        cpu.register_A &= mem.memory[address];
+        cpu.update_zero_and_negative_flag(&cpu.register_A);
+    }
+
+    pub fn BRK(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
         _ = mem;
         _ = addressing_mode;
         cpu.stop = true;
     }
 
-    pub fn inx(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+    pub fn INX(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
         _ = mem;
         _ = addressing_mode;
         cpu.register_X +%= 1;
         cpu.update_zero_and_negative_flag(&cpu.register_X);
     }
 
-    pub fn tax(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+    pub fn TAX(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
         _ = mem;
         _ = addressing_mode;
         cpu.register_X = cpu.register_A;
         cpu.update_zero_and_negative_flag(&cpu.register_A);
     }
 
-    pub fn lda(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+    pub fn LAD(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
         const address = cpu.next_address(mem, addressing_mode);
         cpu.register_A = mem.memory[address];
         cpu.update_zero_and_negative_flag(&cpu.register_A);
     }
 
-    pub fn sta(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
+    pub fn STA(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
         const address = cpu.next_address(mem, addressing_mode);
         mem.memory[address] = cpu.register_A;
     }
@@ -346,13 +429,19 @@ const Cpu = struct {
             self.status &= ~ZERO_FLAG;
         }
 
-        if ((register.* & (1 << 7)) != 0) {
+        if (isBitSet(u8, register.*, 7)) {
             self.status |= NEGATIVE_FLAG;
         } else {
             self.status &= ~NEGATIVE_FLAG;
         }
     }
 };
+
+pub fn isBitSet(comptime Value: type, value: Value, comptime bit: usize) bool {
+    comptime std.debug.assert(bit < @typeInfo(Value).Int.bits);
+
+    return (value & (@as(Value, 1) << @intCast(bit))) != 0;
+}
 
 pub fn main() !void {
     ray.InitWindow(400, 400, "NES");
@@ -366,6 +455,17 @@ pub fn main() !void {
     ray.CloseWindow();
 }
 
+test "0x29 AND - Bitwise AND with Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x55, 0x29, 0xAA, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+    
+    try std.testing.expect(cpu.register_A == 0x00);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
 test "0xA9 LDA - Load Accumulator" {
     var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0x00 });
     var cpu = Cpu.init(&mem);
@@ -373,8 +473,8 @@ test "0xA9 LDA - Load Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.register_A == 0x05);
-    try std.testing.expect((cpu.status & 0b0000_0010) == 0);
-    try std.testing.expect((cpu.status & 0b1000_0000) == 0);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
 
 test "0xA5 LDA - Load Accumulator" {
@@ -385,8 +485,8 @@ test "0xA5 LDA - Load Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.register_A == 0x55);
-    try std.testing.expect((cpu.status & 0b0000_0010) == 0);
-    try std.testing.expect((cpu.status & 0b1000_0000) == 0);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
 
 test "0xAA TAX - Transfer Accumulator to X" {
@@ -396,8 +496,8 @@ test "0xAA TAX - Transfer Accumulator to X" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.register_X == 10);
-    try std.testing.expect((cpu.status & 0b0000_0010) == 0);
-    try std.testing.expect((cpu.status & 0b1000_0000) == 0);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
 
 test "0xE8 INX - Increment X Register" {
@@ -407,8 +507,8 @@ test "0xE8 INX - Increment X Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.register_X == 1);
-    try std.testing.expect((cpu.status & 0b0000_0010) == 0);
-    try std.testing.expect((cpu.status & 0b1000_0000) == 0);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
 
 test "0xE8 INX - Increment X Register with overflow" {
