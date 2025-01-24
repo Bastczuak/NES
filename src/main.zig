@@ -18,8 +18,8 @@ const AddressingMode = enum(u8) {
 const OpCode = struct {
     mnemonic: []const u8,
     bytes: u8,
-    decodingFn: *const fn (cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void,
-    addressing_mode: AddressingMode,
+    decodingFn: *const fn (cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void,
+    addressingMode: AddressingMode,
 };
 
 const Instruction = struct { key: u8, value: OpCode };
@@ -29,7 +29,7 @@ const Instructions = [_]Instruction{
         .key = 0x29,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.Immediate,
+            .addressingMode = AddressingMode.Immediate,
             .bytes = 2,
             .decodingFn = Cpu.AND,
         },
@@ -38,7 +38,7 @@ const Instructions = [_]Instruction{
         .key = 0x25,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.ZeroPage,
+            .addressingMode = AddressingMode.ZeroPage,
             .bytes = 2,
             .decodingFn = Cpu.AND,
         },
@@ -47,7 +47,7 @@ const Instructions = [_]Instruction{
         .key = 0x35,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.ZeroPageX,
+            .addressingMode = AddressingMode.ZeroPageX,
             .bytes = 2,
             .decodingFn = Cpu.AND,
         },
@@ -56,7 +56,7 @@ const Instructions = [_]Instruction{
         .key = 0x2D,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.Absolute,
+            .addressingMode = AddressingMode.Absolute,
             .bytes = 3,
             .decodingFn = Cpu.AND,
         },
@@ -65,7 +65,7 @@ const Instructions = [_]Instruction{
         .key = 0x3D,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.AbsoluteX,
+            .addressingMode = AddressingMode.AbsoluteX,
             .bytes = 3,
             .decodingFn = Cpu.AND,
         },
@@ -74,7 +74,7 @@ const Instructions = [_]Instruction{
         .key = 0x39,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.AbsoluteY,
+            .addressingMode = AddressingMode.AbsoluteY,
             .bytes = 3,
             .decodingFn = Cpu.AND,
         },
@@ -83,7 +83,7 @@ const Instructions = [_]Instruction{
         .key = 0x21,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.IndirectX,
+            .addressingMode = AddressingMode.IndirectX,
             .bytes = 2,
             .decodingFn = Cpu.AND,
         },
@@ -92,7 +92,7 @@ const Instructions = [_]Instruction{
         .key = 0x31,
         .value = OpCode{
             .mnemonic = "AND",
-            .addressing_mode = AddressingMode.IndirectY,
+            .addressingMode = AddressingMode.IndirectY,
             .bytes = 2,
             .decodingFn = Cpu.AND,
         },
@@ -102,17 +102,58 @@ const Instructions = [_]Instruction{
         .key = 0x00,
         .value = OpCode{
             .mnemonic = "BRK",
-            .addressing_mode = AddressingMode.None,
+            .addressingMode = AddressingMode.None,
             .bytes = 1,
             .decodingFn = Cpu.BRK,
         },
     },
     //
     Instruction{
+        .key = 0x18,
+        .value = OpCode{
+            .mnemonic = "CLC",
+            .addressingMode = AddressingMode.None,
+            .bytes = 1,
+            .decodingFn = Cpu.CLC,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xD8,
+        .value = OpCode{
+            .mnemonic = "CLD",
+            .addressingMode = AddressingMode.None,
+            .bytes = 1,
+            .decodingFn = Cpu.CLD,
+        },
+    },
+    //
+    Instruction{
+        .key = 0x58,
+        .value = OpCode{
+            .mnemonic = "CLI",
+            .addressingMode = AddressingMode.None,
+            .bytes = 1,
+            .decodingFn = Cpu.CLI,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xB8,
+        .value = OpCode{
+            .mnemonic = "CLV",
+            .addressingMode = AddressingMode.None,
+            .bytes = 1,
+            .decodingFn = Cpu.CLV,
+        },
+    },
+    //
+    //
+    Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
-            .addressing_mode = AddressingMode.None,
+            .addressingMode = AddressingMode.None,
             .bytes = 1,
             .decodingFn = Cpu.INX,
         },
@@ -122,7 +163,7 @@ const Instructions = [_]Instruction{
         .key = 0xAA,
         .value = OpCode{
             .mnemonic = "TAX",
-            .addressing_mode = AddressingMode.None,
+            .addressingMode = AddressingMode.None,
             .bytes = 1,
             .decodingFn = Cpu.TAX,
         },
@@ -132,7 +173,7 @@ const Instructions = [_]Instruction{
         .key = 0xA9,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.Immediate,
+            .addressingMode = AddressingMode.Immediate,
             .bytes = 2,
             .decodingFn = Cpu.LAD,
         },
@@ -141,7 +182,7 @@ const Instructions = [_]Instruction{
         .key = 0xA5,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.ZeroPage,
+            .addressingMode = AddressingMode.ZeroPage,
             .bytes = 2,
             .decodingFn = Cpu.LAD,
         },
@@ -150,7 +191,7 @@ const Instructions = [_]Instruction{
         .key = 0xB5,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.ZeroPageX,
+            .addressingMode = AddressingMode.ZeroPageX,
             .bytes = 2,
             .decodingFn = Cpu.LAD,
         },
@@ -159,7 +200,7 @@ const Instructions = [_]Instruction{
         .key = 0xAD,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.Absolute,
+            .addressingMode = AddressingMode.Absolute,
             .bytes = 3,
             .decodingFn = Cpu.LAD,
         },
@@ -168,7 +209,7 @@ const Instructions = [_]Instruction{
         .key = 0xBD,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.AbsoluteX,
+            .addressingMode = AddressingMode.AbsoluteX,
             .bytes = 3,
             .decodingFn = Cpu.LAD,
         },
@@ -177,7 +218,7 @@ const Instructions = [_]Instruction{
         .key = 0xB9,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.AbsoluteY,
+            .addressingMode = AddressingMode.AbsoluteY,
             .bytes = 3,
             .decodingFn = Cpu.LAD,
         },
@@ -186,7 +227,7 @@ const Instructions = [_]Instruction{
         .key = 0xA1,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.IndirectX,
+            .addressingMode = AddressingMode.IndirectX,
             .bytes = 2,
             .decodingFn = Cpu.LAD,
         },
@@ -195,7 +236,7 @@ const Instructions = [_]Instruction{
         .key = 0xB1,
         .value = OpCode{
             .mnemonic = "LDA",
-            .addressing_mode = AddressingMode.IndirectY,
+            .addressingMode = AddressingMode.IndirectY,
             .bytes = 2,
             .decodingFn = Cpu.LAD,
         },
@@ -205,7 +246,7 @@ const Instructions = [_]Instruction{
         .key = 0x85,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.ZeroPage,
+            .addressingMode = AddressingMode.ZeroPage,
             .bytes = 2,
             .decodingFn = Cpu.STA,
         },
@@ -214,7 +255,7 @@ const Instructions = [_]Instruction{
         .key = 0x95,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.ZeroPageX,
+            .addressingMode = AddressingMode.ZeroPageX,
             .bytes = 2,
             .decodingFn = Cpu.STA,
         },
@@ -223,7 +264,7 @@ const Instructions = [_]Instruction{
         .key = 0x8D,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.Absolute,
+            .addressingMode = AddressingMode.Absolute,
             .bytes = 3,
             .decodingFn = Cpu.STA,
         },
@@ -232,7 +273,7 @@ const Instructions = [_]Instruction{
         .key = 0x9D,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.AbsoluteX,
+            .addressingMode = AddressingMode.AbsoluteX,
             .bytes = 3,
             .decodingFn = Cpu.STA,
         },
@@ -241,7 +282,7 @@ const Instructions = [_]Instruction{
         .key = 0x99,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.AbsoluteY,
+            .addressingMode = AddressingMode.AbsoluteY,
             .bytes = 3,
             .decodingFn = Cpu.STA,
         },
@@ -250,7 +291,7 @@ const Instructions = [_]Instruction{
         .key = 0x81,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.IndirectX,
+            .addressingMode = AddressingMode.IndirectX,
             .bytes = 2,
             .decodingFn = Cpu.STA,
         },
@@ -259,7 +300,7 @@ const Instructions = [_]Instruction{
         .key = 0x91,
         .value = OpCode{
             .mnemonic = "STA",
-            .addressing_mode = AddressingMode.IndirectY,
+            .addressingMode = AddressingMode.IndirectY,
             .bytes = 2,
             .decodingFn = Cpu.STA,
         },
@@ -311,7 +352,11 @@ const Memory = struct {
 };
 
 const Cpu = struct {
+    const CARRY_FLAG: u8 = 0b0000_0001;
     const ZERO_FLAG: u8 = 0b0000_0010;
+    const INTERRUPT_DISABLE: u8 = 0b0000_0100;
+    const DECIMAL_MODE_FLAG: u8 = 0b0000_1000;
+    const OVERFLOW_FLAG: u8 = 0b0100_0000;
     const NEGATIVE_FLAG: u8 = 0b1000_0000;
 
     stop: bool,
@@ -332,40 +377,50 @@ const Cpu = struct {
         };
     }
 
-    pub fn AND(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressing_mode);
+    pub fn AND(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.next_address(mem, addressingMode);
         cpu.register_A &= mem.memory[address];
         cpu.update_zero_and_negative_flag(&cpu.register_A);
     }
 
-    pub fn BRK(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        _ = mem;
-        _ = addressing_mode;
+    pub fn CLC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status &= ~CARRY_FLAG;
+    }
+
+    pub fn CLD(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status &= ~DECIMAL_MODE_FLAG;
+    }
+
+    pub fn CLI(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status &= ~INTERRUPT_DISABLE;
+    }
+
+    pub fn CLV(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status &= ~OVERFLOW_FLAG;
+    }
+
+    pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.stop = true;
     }
 
-    pub fn INX(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        _ = mem;
-        _ = addressing_mode;
+    pub fn INX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.register_X +%= 1;
         cpu.update_zero_and_negative_flag(&cpu.register_X);
     }
 
-    pub fn TAX(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        _ = mem;
-        _ = addressing_mode;
+    pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.register_X = cpu.register_A;
         cpu.update_zero_and_negative_flag(&cpu.register_A);
     }
 
-    pub fn LAD(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressing_mode);
+    pub fn LAD(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.next_address(mem, addressingMode);
         cpu.register_A = mem.memory[address];
         cpu.update_zero_and_negative_flag(&cpu.register_A);
     }
 
-    pub fn STA(cpu: *Cpu, mem: *Memory, addressing_mode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressing_mode);
+    pub fn STA(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.next_address(mem, addressingMode);
         mem.memory[address] = cpu.register_A;
     }
 
@@ -376,7 +431,7 @@ const Cpu = struct {
             const program_counter_state = self.program_counter;
 
             const ins = get_instuction(ops_code);
-            ins.value.decodingFn(self, mem, ins.value.addressing_mode);
+            ins.value.decodingFn(self, mem, ins.value.addressingMode);
 
             if (program_counter_state == self.program_counter) {
                 self.program_counter += ins.value.bytes - 1;
@@ -384,9 +439,9 @@ const Cpu = struct {
         }
     }
 
-    pub fn next_address(self: *Cpu, mem: *Memory, addressing_mode: AddressingMode) u16 {
+    pub fn next_address(self: *Cpu, mem: *Memory, addressingMode: AddressingMode) u16 {
         var address: u16 = undefined;
-        switch (addressing_mode) {
+        switch (addressingMode) {
             AddressingMode.Immediate => address = self.program_counter,
             AddressingMode.ZeroPage => address = mem.memory[self.program_counter],
             AddressingMode.ZeroPageX => {
@@ -460,10 +515,50 @@ test "0x29 AND - Bitwise AND with Accumulator" {
     var cpu = Cpu.init(&mem);
 
     cpu.interpret(&mem);
-    
+
     try std.testing.expect(cpu.register_A == 0x00);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == true);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
+test "0x18 CLC - Clear Carry Flag" {
+    var mem = Memory.init(&[_]u8{ 0x18, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = 0xFF;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 0) == false);
+}
+
+test "0xD8 CLD - Clear Decimal Mode Flag" {
+    var mem = Memory.init(&[_]u8{ 0xD8, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = 0xFF;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 3) == false);
+}
+
+test "0x58 CLI - Clear Interrupt Disable" {
+    var mem = Memory.init(&[_]u8{ 0x58, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = 0xFF;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 2) == false);
+}
+
+test "0xB8 CLV - Clear Overflow Flag" {
+    var mem = Memory.init(&[_]u8{ 0xB8, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = 0xFF;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 6) == false);
 }
 
 test "0xA9 LDA - Load Accumulator" {
