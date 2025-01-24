@@ -148,6 +148,15 @@ const Instructions = [_]Instruction{
         },
     },
     //
+    Instruction{
+        .key = 0xC9,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.Immediate,
+            .bytes = 2,
+            .decodingFn = Cpu.CMP,
+        },
+    },
     //
     Instruction{
         .key = 0xE8,
@@ -307,7 +316,7 @@ const Instructions = [_]Instruction{
     },
 };
 
-pub fn get_instuction(key: u8) Instruction {
+pub fn getInstruction(key: u8) Instruction {
     for (Instructions) |instruction| {
         if (key == instruction.key) {
             return instruction;
@@ -333,17 +342,17 @@ const Memory = struct {
 
         var memory = Memory{ .memory = [_]u8{0} ** 0xFFFF };
         @memcpy(memory.memory[ROM_START..program_end], program);
-        memory.write_u16(Memory.ROM_PROGRAM_START, Memory.ROM_START);
+        memory.writeU16(Memory.ROM_PROGRAM_START, Memory.ROM_START);
 
         return memory;
     }
 
-    pub fn read_u16(self: *Memory, pos: u16) u16 {
+    pub fn readU16(self: *Memory, pos: u16) u16 {
         var buf = [_]u8{ self.memory[pos], self.memory[pos + 1] };
         return std.mem.readInt(u16, &buf, .little);
     }
 
-    pub fn write_u16(self: *Memory, pos: u16, data: u16) void {
+    pub fn writeU16(self: *Memory, pos: u16, data: u16) void {
         var buf: [2]u8 = undefined;
         std.mem.writeInt(u16, &buf, data, .little);
         self.memory[pos] = buf[0];
@@ -360,27 +369,27 @@ const Cpu = struct {
     const NEGATIVE_FLAG: u8 = 0b1000_0000;
 
     stop: bool,
-    program_counter: u16,
+    programCounter: u16,
     status: u8,
-    register_A: u8, // a.k.a acumulator
-    register_X: u8,
-    register_Y: u8,
+    registerA: u8, // a.k.a acumulator
+    registerX: u8,
+    registerY: u8,
 
     pub fn init(mem: *Memory) Cpu {
         return Cpu{
             .stop = false,
-            .program_counter = mem.read_u16(Memory.ROM_PROGRAM_START),
-            .status = 0,
-            .register_A = 0,
-            .register_X = 0,
-            .register_Y = 0,
+            .programCounter = mem.readU16(Memory.ROM_PROGRAM_START),
+            .status = 0b0011_0000,
+            .registerA = 0,
+            .registerX = 0,
+            .registerY = 0,
         };
     }
 
     pub fn AND(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressingMode);
-        cpu.register_A &= mem.memory[address];
-        cpu.update_zero_and_negative_flag(&cpu.register_A);
+        const address = cpu.nextAddress(mem, addressingMode);
+        cpu.registerA &= mem.memory[address];
+        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
     }
 
     pub fn CLC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -399,77 +408,101 @@ const Cpu = struct {
         cpu.status &= ~OVERFLOW_FLAG;
     }
 
+    pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        const toCompareWith = mem.memory[address];
+        const result = cpu.registerA -% toCompareWith;
+
+        if (result == 0) {
+            cpu.status |= ZERO_FLAG;
+        } else {
+            cpu.status &= ~ZERO_FLAG;
+        }
+
+        if (cpu.registerA >= result) {
+            cpu.status |= CARRY_FLAG;
+        } else {
+            cpu.status &= ~CARRY_FLAG;
+        }
+
+        if (isBitSet(u8, result, 7)) {
+            cpu.status |= NEGATIVE_FLAG;
+        } else {
+            cpu.status &= ~NEGATIVE_FLAG;
+        }
+    }
+
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.stop = true;
     }
 
     pub fn INX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
-        cpu.register_X +%= 1;
-        cpu.update_zero_and_negative_flag(&cpu.register_X);
+        cpu.registerX +%= 1;
+        cpu.updateZeroAndNegativeFlag(&cpu.registerX);
     }
 
     pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
-        cpu.register_X = cpu.register_A;
-        cpu.update_zero_and_negative_flag(&cpu.register_A);
+        cpu.registerX = cpu.registerA;
+        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
     }
 
     pub fn LAD(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressingMode);
-        cpu.register_A = mem.memory[address];
-        cpu.update_zero_and_negative_flag(&cpu.register_A);
+        const address = cpu.nextAddress(mem, addressingMode);
+        cpu.registerA = mem.memory[address];
+        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
     }
 
     pub fn STA(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        const address = cpu.next_address(mem, addressingMode);
-        mem.memory[address] = cpu.register_A;
+        const address = cpu.nextAddress(mem, addressingMode);
+        mem.memory[address] = cpu.registerA;
     }
 
     pub fn interpret(self: *Cpu, mem: *Memory) void {
         while (!self.stop) {
-            const ops_code = mem.memory[self.program_counter];
-            self.program_counter += 1;
-            const program_counter_state = self.program_counter;
+            const opCode = mem.memory[self.programCounter];
+            self.programCounter += 1;
+            const programCounterState = self.programCounter;
 
-            const ins = get_instuction(ops_code);
+            const ins = getInstruction(opCode);
             ins.value.decodingFn(self, mem, ins.value.addressingMode);
 
-            if (program_counter_state == self.program_counter) {
-                self.program_counter += ins.value.bytes - 1;
+            if (programCounterState == self.programCounter) {
+                self.programCounter += ins.value.bytes - 1;
             }
         }
     }
 
-    pub fn next_address(self: *Cpu, mem: *Memory, addressingMode: AddressingMode) u16 {
+    pub fn nextAddress(self: *Cpu, mem: *Memory, addressingMode: AddressingMode) u16 {
         var address: u16 = undefined;
         switch (addressingMode) {
-            AddressingMode.Immediate => address = self.program_counter,
-            AddressingMode.ZeroPage => address = mem.memory[self.program_counter],
+            AddressingMode.Immediate => address = self.programCounter,
+            AddressingMode.ZeroPage => address = mem.memory[self.programCounter],
             AddressingMode.ZeroPageX => {
-                const pos = mem.memory[self.program_counter];
-                address = pos +% self.register_X;
+                const pos = mem.memory[self.programCounter];
+                address = pos +% self.registerX;
             },
-            AddressingMode.Absolute => address = mem.read_u16(self.program_counter),
+            AddressingMode.Absolute => address = mem.readU16(self.programCounter),
             AddressingMode.AbsoluteX => {
-                const pos = mem.read_u16(self.program_counter);
-                address = pos +% self.register_X;
+                const pos = mem.readU16(self.programCounter);
+                address = pos +% self.registerX;
             },
             AddressingMode.AbsoluteY => {
-                const pos = mem.read_u16(self.program_counter);
-                address = pos +% self.register_Y;
+                const pos = mem.readU16(self.programCounter);
+                address = pos +% self.registerY;
             },
             AddressingMode.IndirectX => {
-                const pos = mem.memory[self.program_counter];
-                const ptr = pos +% self.register_X;
+                const pos = mem.memory[self.programCounter];
+                const ptr = pos +% self.registerX;
                 const lo = @as(u16, mem.memory[ptr]);
                 const hi = @as(u16, mem.memory[ptr +% 1]);
                 address = hi << 8 | lo;
             },
             AddressingMode.IndirectY => {
-                const pos = mem.memory[self.program_counter];
+                const pos = mem.memory[self.programCounter];
                 const lo = @as(u16, mem.memory[pos]);
                 const hi = @as(u16, mem.memory[pos +% 1]);
                 const deref = hi << 8 | lo;
-                address = deref +% self.register_Y;
+                address = deref +% self.registerY;
             },
             else => std.debug.panic("Make sure your last operation has the correct addressing mode encoded!", .{}),
         }
@@ -477,7 +510,7 @@ const Cpu = struct {
         return address;
     }
 
-    pub fn update_zero_and_negative_flag(self: *Cpu, register: *const u8) void {
+    pub fn updateZeroAndNegativeFlag(self: *Cpu, register: *const u8) void {
         if (register.* == 0) {
             self.status |= ZERO_FLAG;
         } else {
@@ -516,7 +549,7 @@ test "0x29 AND - Bitwise AND with Accumulator" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_A == 0x00);
+    try std.testing.expect(cpu.registerA == 0x00);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == true);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
@@ -561,13 +594,36 @@ test "0xB8 CLV - Clear Overflow Flag" {
     try std.testing.expect(isBitSet(u8, cpu.status, 6) == false);
 }
 
+test "0xC9 CMP - Compare with Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0xC9, 0x0A, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b1011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xC9, 0x05, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xC9, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0011);
+}
+
 test "0xA9 LDA - Load Accumulator" {
     var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0x00 });
     var cpu = Cpu.init(&mem);
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_A == 0x05);
+    try std.testing.expect(cpu.registerA == 0x05);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
@@ -579,7 +635,7 @@ test "0xA5 LDA - Load Accumulator" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_A == 0x55);
+    try std.testing.expect(cpu.registerA == 0x55);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
@@ -590,7 +646,7 @@ test "0xAA TAX - Transfer Accumulator to X" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_X == 10);
+    try std.testing.expect(cpu.registerX == 10);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
@@ -601,7 +657,7 @@ test "0xE8 INX - Increment X Register" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_X == 1);
+    try std.testing.expect(cpu.registerX == 1);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
 }
@@ -612,7 +668,7 @@ test "0xE8 INX - Increment X Register with overflow" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_X == 1);
+    try std.testing.expect(cpu.registerX == 1);
 }
 
 test "loads 0xC0 into X and increments by 1" {
@@ -621,13 +677,13 @@ test "loads 0xC0 into X and increments by 1" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(cpu.register_X == 0xC1);
+    try std.testing.expect(cpu.registerX == 0xC1);
 }
 
 test "0x85 STA - Store Accumulator" {
     var mem = Memory.init(&[_]u8{ 0x85, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.register_A = 0xFF;
+    cpu.registerA = 0xFF;
 
     cpu.interpret(&mem);
 
