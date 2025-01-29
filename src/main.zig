@@ -22,7 +22,20 @@ const OpCode = struct {
     addressingMode: AddressingMode,
 };
 
-const Instruction = struct { key: u8, value: OpCode };
+const Instruction = struct {
+    key: u8,
+    value: OpCode,
+
+    pub fn getOpCode(key: u8) OpCode {
+        for (Instructions) |instruction| {
+            if (key == instruction.key) {
+                return instruction.value;
+            }
+        }
+
+        std.debug.panic("No Instruction found for ops code: 0x{X}", .{key});
+    }
+};
 
 const Instructions = [_]Instruction{
     Instruction{
@@ -155,6 +168,97 @@ const Instructions = [_]Instruction{
             .addressingMode = AddressingMode.Immediate,
             .bytes = 2,
             .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xC5,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xD5,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.ZeroPageX,
+            .bytes = 2,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xCD,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xDD,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.AbsoluteX,
+            .bytes = 3,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xD9,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.AbsoluteY,
+            .bytes = 3,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xC1,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.IndirectX,
+            .bytes = 2,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    Instruction{
+        .key = 0xD1,
+        .value = OpCode{
+            .mnemonic = "CMP",
+            .addressingMode = AddressingMode.IndirectY,
+            .bytes = 2,
+            .decodingFn = Cpu.CMP,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xE0,
+        .value = OpCode{
+            .mnemonic = "CPX",
+            .addressingMode = AddressingMode.Immediate,
+            .bytes = 2,
+            .decodingFn = Cpu.CPX,
+        },
+    },
+    Instruction{
+        .key = 0xE4,
+        .value = OpCode{
+            .mnemonic = "CPX",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.CPX,
+        },
+    },
+    Instruction{
+        .key = 0xEC,
+        .value = OpCode{
+            .mnemonic = "CPX",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.CPX,
         },
     },
     //
@@ -316,16 +420,6 @@ const Instructions = [_]Instruction{
     },
 };
 
-pub fn getInstruction(key: u8) Instruction {
-    for (Instructions) |instruction| {
-        if (key == instruction.key) {
-            return instruction;
-        }
-    }
-
-    std.debug.panic("No Instruction found for ops code: 0x{X}", .{key});
-}
-
 const Memory = struct {
     memory: [0xFFFF]u8,
 
@@ -388,8 +482,10 @@ const Cpu = struct {
 
     pub fn AND(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
         const address = cpu.nextAddress(mem, addressingMode);
+
         cpu.registerA &= mem.memory[address];
-        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn CLC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -408,28 +504,22 @@ const Cpu = struct {
         cpu.status &= ~OVERFLOW_FLAG;
     }
 
-    pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+    fn cmp(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode, register: *u8) void {
         const address = cpu.nextAddress(mem, addressingMode);
         const toCompareWith = mem.memory[address];
-        const result = cpu.registerA -% toCompareWith;
+        const result = register.* -% toCompareWith;
 
-        if (result == 0) {
-            cpu.status |= ZERO_FLAG;
-        } else {
-            cpu.status &= ~ZERO_FLAG;
-        }
+        cpu.status = cpu.status & ~ZERO_FLAG | if (result == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~CARRY_FLAG | if (register.* >= result) CARRY_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, result, 7)) NEGATIVE_FLAG else 0;
+    }
 
-        if (cpu.registerA >= result) {
-            cpu.status |= CARRY_FLAG;
-        } else {
-            cpu.status &= ~CARRY_FLAG;
-        }
+    pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        return cmp(cpu, mem, addressingMode, &cpu.registerA);
+    }
 
-        if (isBitSet(u8, result, 7)) {
-            cpu.status |= NEGATIVE_FLAG;
-        } else {
-            cpu.status &= ~NEGATIVE_FLAG;
-        }
+    pub fn CPX(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        return cmp(cpu, mem, addressingMode, &cpu.registerX);
     }
 
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -438,36 +528,39 @@ const Cpu = struct {
 
     pub fn INX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerX +%= 1;
-        cpu.updateZeroAndNegativeFlag(&cpu.registerX);
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerX == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerX = cpu.registerA;
-        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn LAD(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
         const address = cpu.nextAddress(mem, addressingMode);
+
         cpu.registerA = mem.memory[address];
-        cpu.updateZeroAndNegativeFlag(&cpu.registerA);
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn STA(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
         const address = cpu.nextAddress(mem, addressingMode);
+
         mem.memory[address] = cpu.registerA;
     }
 
     pub fn interpret(self: *Cpu, mem: *Memory) void {
         while (!self.stop) {
-            const opCode = mem.memory[self.programCounter];
+            const opCode = Instruction.getOpCode(mem.memory[self.programCounter]);
             self.programCounter += 1;
             const programCounterState = self.programCounter;
 
-            const ins = getInstruction(opCode);
-            ins.value.decodingFn(self, mem, ins.value.addressingMode);
-
+            opCode.decodingFn(self, mem, opCode.addressingMode);
             if (programCounterState == self.programCounter) {
-                self.programCounter += ins.value.bytes - 1;
+                self.programCounter += opCode.bytes - 1;
             }
         }
     }
@@ -508,20 +601,6 @@ const Cpu = struct {
         }
 
         return address;
-    }
-
-    pub fn updateZeroAndNegativeFlag(self: *Cpu, register: *const u8) void {
-        if (register.* == 0) {
-            self.status |= ZERO_FLAG;
-        } else {
-            self.status &= ~ZERO_FLAG;
-        }
-
-        if (isBitSet(u8, register.*, 7)) {
-            self.status |= NEGATIVE_FLAG;
-        } else {
-            self.status &= ~NEGATIVE_FLAG;
-        }
     }
 };
 
@@ -610,6 +689,29 @@ test "0xC9 CMP - Compare with Accumulator" {
     try std.testing.expect(cpu.status == 0b0011_0001);
 
     mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xC9, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0011);
+}
+
+test "0xE0 CPX - Compare X Register" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0xAA, 0xE0, 0x0A, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b1011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xAA, 0xE0, 0x05, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xAA, 0xE0, 0x0A, 0x00 });
     cpu = Cpu.init(&mem);
 
     cpu.interpret(&mem);
