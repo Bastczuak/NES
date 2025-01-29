@@ -12,7 +12,7 @@ const AddressingMode = enum(u8) {
     AbsoluteY,
     IndirectX,
     IndirectY,
-    None,
+    Implied,
 };
 
 const OpCode = struct {
@@ -115,7 +115,7 @@ const Instructions = [_]Instruction{
         .key = 0x00,
         .value = OpCode{
             .mnemonic = "BRK",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.BRK,
         },
@@ -125,7 +125,7 @@ const Instructions = [_]Instruction{
         .key = 0x18,
         .value = OpCode{
             .mnemonic = "CLC",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.CLC,
         },
@@ -135,7 +135,7 @@ const Instructions = [_]Instruction{
         .key = 0xD8,
         .value = OpCode{
             .mnemonic = "CLD",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.CLD,
         },
@@ -145,7 +145,7 @@ const Instructions = [_]Instruction{
         .key = 0x58,
         .value = OpCode{
             .mnemonic = "CLI",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.CLI,
         },
@@ -155,7 +155,7 @@ const Instructions = [_]Instruction{
         .key = 0xB8,
         .value = OpCode{
             .mnemonic = "CLV",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.CLV,
         },
@@ -263,10 +263,38 @@ const Instructions = [_]Instruction{
     },
     //
     Instruction{
+        .key = 0xC0,
+        .value = OpCode{
+            .mnemonic = "CPY",
+            .addressingMode = AddressingMode.Immediate,
+            .bytes = 2,
+            .decodingFn = Cpu.CPY,
+        },
+    },
+    Instruction{
+        .key = 0xC4,
+        .value = OpCode{
+            .mnemonic = "CPY",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.CPY,
+        },
+    },
+    Instruction{
+        .key = 0xCC,
+        .value = OpCode{
+            .mnemonic = "CPY",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.CPY,
+        },
+    },
+    //
+    Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.INX,
         },
@@ -276,9 +304,19 @@ const Instructions = [_]Instruction{
         .key = 0xAA,
         .value = OpCode{
             .mnemonic = "TAX",
-            .addressingMode = AddressingMode.None,
+            .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.TAX,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xA8,
+        .value = OpCode{
+            .mnemonic = "TAY",
+            .addressingMode = AddressingMode.Implied,
+            .bytes = 1,
+            .decodingFn = Cpu.TAY,
         },
     },
     //
@@ -504,7 +542,7 @@ const Cpu = struct {
         cpu.status &= ~OVERFLOW_FLAG;
     }
 
-    fn cmp(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode, register: *u8) void {
+    fn compare(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode, register: *u8) void {
         const address = cpu.nextAddress(mem, addressingMode);
         const toCompareWith = mem.memory[address];
         const result = register.* -% toCompareWith;
@@ -515,11 +553,15 @@ const Cpu = struct {
     }
 
     pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        return cmp(cpu, mem, addressingMode, &cpu.registerA);
+        return compare(cpu, mem, addressingMode, &cpu.registerA);
     }
 
     pub fn CPX(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        return cmp(cpu, mem, addressingMode, &cpu.registerX);
+        return compare(cpu, mem, addressingMode, &cpu.registerX);
+    }
+
+    pub fn CPY(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        return compare(cpu, mem, addressingMode, &cpu.registerY);
     }
 
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -534,8 +576,14 @@ const Cpu = struct {
 
     pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerX = cpu.registerA;
-        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerX == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, 7)) NEGATIVE_FLAG else 0;
+    }
+
+    pub fn TAY(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.registerY = cpu.registerA;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerY == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerY, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn LAD(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -719,6 +767,29 @@ test "0xE0 CPX - Compare X Register" {
     try std.testing.expect(cpu.status == 0b0011_0011);
 }
 
+test "0xC0 CPY - Compare Y Register" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0xA8, 0xC0, 0x0A, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b1011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xA8, 0xC0, 0x05, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x0A, 0xA8, 0xC0, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0011);
+}
+
 test "0xA9 LDA - Load Accumulator" {
     var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0x00 });
     var cpu = Cpu.init(&mem);
@@ -751,6 +822,17 @@ test "0xAA TAX - Transfer Accumulator to X" {
     try std.testing.expect(cpu.registerX == 10);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
+test "0xA8 TAY - Transfer Accumulator to Y" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0xA8, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerY == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
 }
 
 test "0xE8 INX - Increment X Register" {
