@@ -291,6 +291,63 @@ const Instructions = [_]Instruction{
     },
     //
     Instruction{
+        .key = 0xC6,
+        .value = OpCode{
+            .mnemonic = "DEC",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.DEC,
+        },
+    },
+    Instruction{
+        .key = 0xD6,
+        .value = OpCode{
+            .mnemonic = "DEC",
+            .addressingMode = AddressingMode.ZeroPageX,
+            .bytes = 2,
+            .decodingFn = Cpu.DEC,
+        },
+    },
+    Instruction{
+        .key = 0xCE,
+        .value = OpCode{
+            .mnemonic = "DEC",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.DEC,
+        },
+    },
+    Instruction{
+        .key = 0xDE,
+        .value = OpCode{
+            .mnemonic = "DEC",
+            .addressingMode = AddressingMode.AbsoluteX,
+            .bytes = 3,
+            .decodingFn = Cpu.DEC,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xCA,
+        .value = OpCode{
+            .mnemonic = "DEX",
+            .addressingMode = AddressingMode.Implied,
+            .bytes = 1,
+            .decodingFn = Cpu.DEX,
+        },
+    },
+    //
+    Instruction{
+        .key = 0x88,
+        .value = OpCode{
+            .mnemonic = "DEY",
+            .addressingMode = AddressingMode.Implied,
+            .bytes = 1,
+            .decodingFn = Cpu.DEY,
+        },
+    },
+    //
+    Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
@@ -564,6 +621,26 @@ const Cpu = struct {
         return compare(cpu, mem, addressingMode, &cpu.registerY);
     }
 
+    fn decrement(value: *u8, status: *u8) void {
+        value.* -%= 1;
+
+        status.* = status.* & ~ZERO_FLAG | if (value.* == 0) ZERO_FLAG else 0;
+        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, 7)) NEGATIVE_FLAG else 0;
+    }
+
+    pub fn DEC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        decrement(&mem.memory[address], &cpu.status);
+    }
+
+    pub fn DEX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        decrement(&cpu.registerX, &cpu.status);
+    }
+
+    pub fn DEY(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        decrement(&cpu.registerY, &cpu.status);
+    }
+
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.stop = true;
     }
@@ -788,6 +865,42 @@ test "0xC0 CPY - Compare Y Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.status == 0b0011_0011);
+}
+
+test "0xC6 DEC - Decrement Memory" {
+    var mem = Memory.init(&[_]u8{ 0xCE, 0x00, 0x02, 0xCE, 0x00, 0x02, 0x00 });
+    mem.memory[0x0200] = 0x01;
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(mem.memory[0x0200] == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0xCA DEX - Decrement X Register" {
+    var mem = Memory.init(&[_]u8{ 0xCA, 0xCA, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerX = 0x01;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerX == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0xCA DEY - Decrement Y Register" {
+    var mem = Memory.init(&[_]u8{ 0x88, 0x88, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerY = 0x01;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerY == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
 }
 
 test "0xA9 LDA - Load Accumulator" {
