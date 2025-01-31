@@ -348,6 +348,79 @@ const Instructions = [_]Instruction{
     },
     //
     Instruction{
+        .key = 0x49,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.Immediate,
+            .bytes = 2,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x45,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x55,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.ZeroPageX,
+            .bytes = 2,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x4D,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x5D,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.AbsoluteX,
+            .bytes = 3,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x59,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.AbsoluteY,
+            .bytes = 3,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x41,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.IndirectX,
+            .bytes = 2,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    Instruction{
+        .key = 0x51,
+        .value = OpCode{
+            .mnemonic = "EOR",
+            .addressingMode = AddressingMode.IndirectY,
+            .bytes = 2,
+            .decodingFn = Cpu.EOR,
+        },
+    },
+    //
+    Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
@@ -641,6 +714,14 @@ const Cpu = struct {
         decrement(&cpu.registerY, &cpu.status);
     }
 
+    pub fn EOR(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        cpu.registerA ^= mem.memory[address];
+
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+    }
+
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.stop = true;
     }
@@ -899,6 +980,18 @@ test "0xCA DEY - Decrement Y Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerY == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0x49 EOR - Exclusive OR" {
+    var mem = Memory.init(&[_]u8{ 0x49, 0x55, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerA = 0xAA;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xFF);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
 }
