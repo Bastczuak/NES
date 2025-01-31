@@ -421,12 +421,59 @@ const Instructions = [_]Instruction{
     },
     //
     Instruction{
+        .key = 0xE6,
+        .value = OpCode{
+            .mnemonic = "INC",
+            .addressingMode = AddressingMode.ZeroPage,
+            .bytes = 2,
+            .decodingFn = Cpu.INC,
+        },
+    },
+    Instruction{
+        .key = 0xF6,
+        .value = OpCode{
+            .mnemonic = "INC",
+            .addressingMode = AddressingMode.ZeroPageX,
+            .bytes = 2,
+            .decodingFn = Cpu.INC,
+        },
+    },
+    Instruction{
+        .key = 0xEE,
+        .value = OpCode{
+            .mnemonic = "INC",
+            .addressingMode = AddressingMode.Absolute,
+            .bytes = 3,
+            .decodingFn = Cpu.INC,
+        },
+    },
+    Instruction{
+        .key = 0xFE,
+        .value = OpCode{
+            .mnemonic = "INC",
+            .addressingMode = AddressingMode.AbsoluteX,
+            .bytes = 3,
+            .decodingFn = Cpu.INC,
+        },
+    },
+    //
+    Instruction{
         .key = 0xE8,
         .value = OpCode{
             .mnemonic = "INX",
             .addressingMode = AddressingMode.Implied,
             .bytes = 1,
             .decodingFn = Cpu.INX,
+        },
+    },
+    //
+    Instruction{
+        .key = 0xC8,
+        .value = OpCode{
+            .mnemonic = "INY",
+            .addressingMode = AddressingMode.Implied,
+            .bytes = 1,
+            .decodingFn = Cpu.INY,
         },
     },
     //
@@ -656,6 +703,10 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
+    pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.stop = true;
+    }
+
     pub fn CLC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.status &= ~CARRY_FLAG;
     }
@@ -696,7 +747,6 @@ const Cpu = struct {
 
     fn decrement(value: *u8, status: *u8) void {
         value.* -%= 1;
-
         status.* = status.* & ~ZERO_FLAG | if (value.* == 0) ZERO_FLAG else 0;
         status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, 7)) NEGATIVE_FLAG else 0;
     }
@@ -722,14 +772,23 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
-        cpu.stop = true;
+    fn increment(value: *u8, status: *u8) void {
+        value.* +%= 1;
+        status.* = status.* & ~ZERO_FLAG | if (value.* == 0) ZERO_FLAG else 0;
+        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, 7)) NEGATIVE_FLAG else 0;
+    }
+
+    pub fn INC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        increment(&mem.memory[address], &cpu.status);
     }
 
     pub fn INX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
-        cpu.registerX +%= 1;
-        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerX == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, 7)) NEGATIVE_FLAG else 0;
+        increment(&cpu.registerX, &cpu.status);
+    }
+
+    pub fn INY(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        increment(&cpu.registerY, &cpu.status);
     }
 
     pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -996,6 +1055,49 @@ test "0x49 EOR - Exclusive OR" {
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
 }
 
+test "0xEE INC - Increment Memory" {
+    var mem = Memory.init(&[_]u8{ 0xEE, 0x00, 0x02, 0xEE, 0x00, 0x02, 0x00 });
+    mem.memory[0x0200] = 0xFF;
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(mem.memory[0x0200] == 0x01);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
+test "0xE8 INX - Increment X Register" {
+    var mem = Memory.init(&[_]u8{ 0xE8, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerX == 1);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
+test "0xE8 INX - Increment X Register with overflow" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0xAA, 0xE8, 0xE8, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerX == 1);
+}
+
+test "0xC8 INY - Increment Y Register" {
+    var mem = Memory.init(&[_]u8{ 0xC8, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerY == 1);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+}
+
 test "0xA9 LDA - Load Accumulator" {
     var mem = Memory.init(&[_]u8{ 0xA9, 0x05, 0x00 });
     var cpu = Cpu.init(&mem);
@@ -1039,26 +1141,6 @@ test "0xA8 TAY - Transfer Accumulator to Y" {
     try std.testing.expect(cpu.registerY == 0xFF);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
-}
-
-test "0xE8 INX - Increment X Register" {
-    var mem = Memory.init(&[_]u8{ 0xE8, 0x00 });
-    var cpu = Cpu.init(&mem);
-
-    cpu.interpret(&mem);
-
-    try std.testing.expect(cpu.registerX == 1);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
-}
-
-test "0xE8 INX - Increment X Register with overflow" {
-    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0xAA, 0xE8, 0xE8, 0x00 });
-    var cpu = Cpu.init(&mem);
-
-    cpu.interpret(&mem);
-
-    try std.testing.expect(cpu.registerX == 1);
 }
 
 test "loads 0xC0 into X and increments by 1" {
