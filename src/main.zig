@@ -1553,10 +1553,10 @@ const Cpu = struct {
     const ZERO_FLAG: u8 = 0b0000_0010;
     const INTERRUPT_DISABLE: u8 = 0b0000_0100;
     const DECIMAL_MODE_FLAG: u8 = 0b0000_1000;
+    const BREAK_COMMAND: u8 = 0b0001_0000;
     const OVERFLOW_FLAG: u8 = 0b0100_0000;
     const NEGATIVE_FLAG: u8 = 0b1000_0000;
 
-    stop: bool,
     programCounter: u16,
     status: u8,
     registerA: u8, // a.k.a acumulator
@@ -1565,9 +1565,8 @@ const Cpu = struct {
 
     pub fn init(mem: *Memory) Cpu {
         return Cpu{
-            .stop = false,
             .programCounter = mem.readU16(Memory.ROM_PROGRAM_START),
-            .status = 0b0011_0000,
+            .status = 0b0010_0000,
             .registerA = 0,
             .registerX = 0,
             .registerY = 0,
@@ -1619,7 +1618,7 @@ const Cpu = struct {
     }
 
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
-        cpu.stop = true;
+        cpu.status |= BREAK_COMMAND;
     }
     pub fn BVC(_: *Cpu, _: *Memory, _: AddressingMode) void {
         return;
@@ -1850,7 +1849,7 @@ const Cpu = struct {
     }
 
     pub fn interpret(self: *Cpu, mem: *Memory) void {
-        while (!self.stop) {
+        while (!isBitSet(u8, self.status, 4)) {
             const opCode = Instruction.getOpCode(mem.memory[self.programCounter]);
             self.programCounter += 1;
             const programCounterState = self.programCounter;
@@ -1937,7 +1936,7 @@ test "0x29 AND - Bitwise AND with Accumulator" {
 test "0x18 CLC - Clear Carry Flag" {
     var mem = Memory.init(&[_]u8{ 0x18, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = 0xFF;
+    cpu.status = Cpu.CARRY_FLAG;
 
     cpu.interpret(&mem);
 
@@ -1947,7 +1946,7 @@ test "0x18 CLC - Clear Carry Flag" {
 test "0xD8 CLD - Clear Decimal Mode Flag" {
     var mem = Memory.init(&[_]u8{ 0xD8, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = 0xFF;
+    cpu.status = Cpu.DECIMAL_MODE_FLAG;
 
     cpu.interpret(&mem);
 
@@ -1957,7 +1956,7 @@ test "0xD8 CLD - Clear Decimal Mode Flag" {
 test "0x58 CLI - Clear Interrupt Disable" {
     var mem = Memory.init(&[_]u8{ 0x58, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = 0xFF;
+    cpu.status = Cpu.INTERRUPT_DISABLE;
 
     cpu.interpret(&mem);
 
@@ -1967,7 +1966,7 @@ test "0x58 CLI - Clear Interrupt Disable" {
 test "0xB8 CLV - Clear Overflow Flag" {
     var mem = Memory.init(&[_]u8{ 0xB8, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = 0xFF;
+    cpu.status = Cpu.OVERFLOW_FLAG;
 
     cpu.interpret(&mem);
 
