@@ -1836,16 +1836,20 @@ const Cpu = struct {
         return;
     }
 
-    pub fn TXA(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn TXA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.registerA = cpu.registerX;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TXS(_: *Cpu, _: *Memory, _: AddressingMode) void {
         return;
     }
 
-    pub fn TYA(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn TYA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.registerA = cpu.registerY;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn interpret(self: *Cpu, mem: *Memory) void {
@@ -1867,33 +1871,33 @@ const Cpu = struct {
             AddressingMode.Immediate => address = self.programCounter,
             AddressingMode.ZeroPage => address = mem.memory[self.programCounter],
             AddressingMode.ZeroPageX => {
-                const pos = mem.memory[self.programCounter];
-                address = pos +% self.registerX;
+                const location = mem.memory[self.programCounter];
+                address = location +% self.registerX;
             },
             AddressingMode.ZeroPageY => {
-                const pos = mem.memory[self.programCounter];
-                address = pos +% self.registerY;
+                const location = mem.memory[self.programCounter];
+                address = location +% self.registerY;
             },
             AddressingMode.Absolute => address = mem.readU16(self.programCounter),
             AddressingMode.AbsoluteX => {
-                const pos = mem.readU16(self.programCounter);
-                address = pos +% self.registerX;
+                const location = mem.readU16(self.programCounter);
+                address = location +% self.registerX;
             },
             AddressingMode.AbsoluteY => {
-                const pos = mem.readU16(self.programCounter);
-                address = pos +% self.registerY;
+                const location = mem.readU16(self.programCounter);
+                address = location +% self.registerY;
             },
             AddressingMode.IndirectX => {
-                const pos = mem.memory[self.programCounter];
-                const ptr = pos +% self.registerX;
+                const location = mem.memory[self.programCounter];
+                const ptr = location +% self.registerX;
                 const lo = @as(u16, mem.memory[ptr]);
                 const hi = @as(u16, mem.memory[ptr +% 1]);
                 address = hi << 8 | lo;
             },
             AddressingMode.IndirectY => {
-                const pos = mem.memory[self.programCounter];
-                const lo = @as(u16, mem.memory[pos]);
-                const hi = @as(u16, mem.memory[pos +% 1]);
+                const location = mem.memory[self.programCounter];
+                const lo = @as(u16, mem.memory[location]);
+                const hi = @as(u16, mem.memory[location +% 1]);
                 const deref = hi << 8 | lo;
                 address = deref +% self.registerY;
             },
@@ -2279,6 +2283,30 @@ test "0x09 ORA - Logical Inclusive OR" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xFF);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0x8A TXA - Transfer X to Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0x8A, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerX = 0xAA;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xAA);
+    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0x98 TYA - Transfer Y to Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0x98, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerY = 0xAA;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xAA);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
 }
