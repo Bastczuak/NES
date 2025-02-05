@@ -1573,8 +1573,17 @@ const Cpu = struct {
         };
     }
 
-    pub fn ADC(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn ADC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        const sum = @as(u16, cpu.registerA) + @as(u16, mem.memory[address]) + @as(u16, (cpu.status >> 0) & 0x01);
+        // https://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+        const sign = (cpu.registerA ^ @as(u8, @truncate(sum)) & (mem.memory[address]) ^ @as(u8, @truncate(sum))) & 0x80;
+
+        cpu.registerA = @as(u8, @truncate(sum));
+        cpu.status = cpu.status & ~CARRY_FLAG | if (sum > 0xFF) CARRY_FLAG else 0;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~OVERFLOW_FLAG | if (sign != 0) OVERFLOW_FLAG else 0;
     }
 
     pub fn AND(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -2394,4 +2403,46 @@ test "0x0A ASL - Arithmetic Shift Left" {
 
     try std.testing.expect(cpu.registerA == 0x00);
     try std.testing.expect(cpu.status == 0b0011_0011);
+}
+
+test "0x69 ADC - Add with Carry" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x10, 0x18, 0x69, 0x20, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x30);
+    try std.testing.expect(cpu.status == 0b0011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x50, 0x18, 0x69, 0xB0, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x00);
+    try std.testing.expect(cpu.status == 0b0011_0011);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x50, 0x18, 0x69, 0x50, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xA0);
+    try std.testing.expect(cpu.status == 0b1111_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0xD0, 0x18, 0x69, 0x90, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x60);
+    try std.testing.expect(cpu.status == 0b0111_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x10, 0x38, 0x69, 0x10, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x21);
+    try std.testing.expect(cpu.status == 0b0011_0000);
 }
