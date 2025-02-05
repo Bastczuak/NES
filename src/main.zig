@@ -1791,16 +1791,16 @@ const Cpu = struct {
         return;
     }
 
-    pub fn SEC(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn SEC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status |= CARRY_FLAG;
     }
 
-    pub fn SED(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn SED(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status |= DECIMAL_MODE_FLAG;
     }
 
-    pub fn SEI(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn SEI(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
+        cpu.status |= INTERRUPT_DISABLE;
     }
 
     inline fn store(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode, register: *u8) void {
@@ -1971,6 +1971,36 @@ test "0xB8 CLV - Clear Overflow Flag" {
     cpu.interpret(&mem);
 
     try std.testing.expect(isBitSet(u8, cpu.status, 6) == false);
+}
+
+test "0x38 SEC - Set Carry Flag" {
+    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = Cpu.CARRY_FLAG;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 0) == true);
+}
+
+test "0xF8 SED - Set Decimal Flag" {
+    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = Cpu.DECIMAL_MODE_FLAG;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 3) == true);
+}
+
+test "0x78 SED - Set Decimal Flag" {
+    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.status = Cpu.INTERRUPT_DISABLE;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(isBitSet(u8, cpu.status, 2) == true);
 }
 
 test "0xC9 CMP - Compare with Accumulator" {
