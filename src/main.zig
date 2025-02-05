@@ -1712,8 +1712,9 @@ const Cpu = struct {
         increment(&cpu.registerY, &cpu.status);
     }
 
-    pub fn JMP(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn JMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        cpu.programCounter = address;
     }
 
     pub fn JSR(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1886,6 +1887,12 @@ const Cpu = struct {
             AddressingMode.AbsoluteY => {
                 const location = mem.readU16(self.programCounter);
                 address = location +% self.registerY;
+            },
+            AddressingMode.Indirect => {
+                const lo = @as(u16, mem.memory[self.programCounter]);
+                const hi = @as(u16, mem.memory[self.programCounter +% 1]);
+                const ptr = hi << 8 | lo;
+                address = mem.readU16(ptr);
             },
             AddressingMode.IndirectX => {
                 const location = mem.memory[self.programCounter];
@@ -2309,4 +2316,23 @@ test "0x98 TYA - Transfer Y to Accumulator" {
     try std.testing.expect(cpu.registerA == 0xAA);
     try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
     try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+}
+
+test "0x4C JMP - Jump" {
+    var mem = Memory.init(&[_]u8{ 0x4C, 0x05, 0x80, 0xA2, 0xAA, 0xA9, 0x55, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerX == 0x00);
+    try std.testing.expect(cpu.registerA == 0x55);
+}
+
+test "0x6C JMP - Jump" {
+    var mem = Memory.init(&[_]u8{ 0x6C, 0x04, 0x80, 0xEA, 0x06, 0x80, 0xA9, 0xAA, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xAA);
 }
