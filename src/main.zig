@@ -1585,8 +1585,16 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn ASL(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn ASL(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const toShift = if (addressingMode == AddressingMode.Accumulator)
+            cpu.registerA
+        else
+            mem.memory[cpu.nextAddress(mem, addressingMode)];
+
+        cpu.registerA = toShift << 1;
+        cpu.status = cpu.status & ~CARRY_FLAG | if (isBitSet(u8, toShift, 7)) CARRY_FLAG else 0;
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
     pub fn BCC(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1869,6 +1877,7 @@ const Cpu = struct {
     pub fn nextAddress(self: *Cpu, mem: *Memory, addressingMode: AddressingMode) u16 {
         var address: u16 = undefined;
         switch (addressingMode) {
+            AddressingMode.Accumulator => address = self.registerA,
             AddressingMode.Immediate => address = self.programCounter,
             AddressingMode.ZeroPage => address = mem.memory[self.programCounter],
             AddressingMode.ZeroPageX => {
@@ -2335,4 +2344,54 @@ test "0x6C JMP - Jump" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xAA);
+}
+
+test "0x0A ASL - Arithmetic Shift Left" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x01, 0x0A, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x02);
+    try std.testing.expect(cpu.status == 0b0011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x00, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x00);
+    try std.testing.expect(cpu.status == 0b0011_0010);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x40, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x80);
+    try std.testing.expect(cpu.status == 0b1011_0000);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x81, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x02);
+    try std.testing.expect(cpu.status == 0b0011_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xFE);
+    try std.testing.expect(cpu.status == 0b1011_0001);
+
+    mem = Memory.init(&[_]u8{ 0xA9, 0x80, 0x0A, 0x00 });
+    cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x00);
+    try std.testing.expect(cpu.status == 0b0011_0011);
 }
