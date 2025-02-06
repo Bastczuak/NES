@@ -1618,7 +1618,13 @@ const Cpu = struct {
         return;
     }
 
-    pub fn BIT(_: *Cpu, _: *Memory, _: AddressingMode) void {
+    pub fn BIT(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        const result = cpu.registerA & mem.memory[address];
+
+        cpu.status = cpu.status & ~ZERO_FLAG | if (result == 0) ZERO_FLAG else 0;
+        cpu.status |= result & OVERFLOW_FLAG;
+        cpu.status |= result & NEGATIVE_FLAG;
         return;
     }
 
@@ -2445,4 +2451,24 @@ test "0x69 ADC - Add with Carry" {
 
     try std.testing.expect(cpu.registerA == 0x21);
     try std.testing.expect(cpu.status == 0b0011_0000);
+}
+
+test "0x2C BIT - Bit Test" {
+    var mem = Memory.init(&[_]u8{ 0x2C, 0x00, 0x02, 0x00 });
+    mem.memory[0x0200] = 0xC0;
+    var cpu = Cpu.init(&mem);
+    cpu.registerA = 0xC0;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b1111_0000);
+
+    mem = Memory.init(&[_]u8{ 0x2C, 0x00, 0x02, 0x00 });
+    mem.memory[0x0200] = 0xFF;
+    cpu = Cpu.init(&mem);
+    cpu.registerA = 0x00;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.status == 0b0011_0010);
 }
