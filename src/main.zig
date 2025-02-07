@@ -1606,16 +1606,28 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn BCC(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    inline fn branch(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        const address = cpu.nextAddress(mem, addressingMode);
+        const step = @as(i8, @bitCast(@as(u8, @truncate(address))));
+        cpu.programCounter +%= @as(u16, @bitCast(@as(i16, step))) +% 1;
     }
 
-    pub fn BCS(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BCC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (!isBitSet(u8, cpu.status, 0)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
-    pub fn BEQ(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BCS(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (isBitSet(u8, cpu.status, 0)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
+    }
+
+    pub fn BEQ(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (isBitSet(u8, cpu.status, 1)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
     pub fn BIT(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1625,30 +1637,39 @@ const Cpu = struct {
         cpu.status = cpu.status & ~ZERO_FLAG | if (result == 0) ZERO_FLAG else 0;
         cpu.status |= result & OVERFLOW_FLAG;
         cpu.status |= result & NEGATIVE_FLAG;
-        return;
     }
 
-    pub fn BMI(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BMI(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (isBitSet(u8, cpu.status, 7)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
-    pub fn BNE(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BNE(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (!isBitSet(u8, cpu.status, 1)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
-    pub fn BPL(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BPL(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (!isBitSet(u8, cpu.status, 7)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
     pub fn BRK(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.status |= BREAK_COMMAND;
     }
-    pub fn BVC(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BVC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (!isBitSet(u8, cpu.status, 6)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
-    pub fn BVS(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn BVS(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        if (isBitSet(u8, cpu.status, 6)) {
+            Cpu.branch(cpu, mem, addressingMode);
+        }
     }
 
     pub fn CLC(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1894,7 +1915,7 @@ const Cpu = struct {
         switch (addressingMode) {
             AddressingMode.Accumulator => address = self.registerA,
             AddressingMode.Immediate => address = self.programCounter,
-            AddressingMode.ZeroPage => address = mem.memory[self.programCounter],
+            AddressingMode.ZeroPage, AddressingMode.Relative => address = mem.memory[self.programCounter],
             AddressingMode.ZeroPageX => {
                 const location = mem.memory[self.programCounter];
                 address = location +% self.registerX;
@@ -2471,4 +2492,90 @@ test "0x2C BIT - Bit Test" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.status == 0b0011_0010);
+}
+
+test "0x90 BCC - Branch if Carry Clear" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0x00, 0x18, 0x69, 0x01, 0xC9, 0x0F, 0x90, 0xFA, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 15);
+}
+
+test "0xB0 BCS - Branch if Carry Set" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x00, 0x18, 0x69, 0x01, 0xC9, 0x0F, 0xB0, 0x03, 0x4C, 0x03, 0x80, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 15);
+}
+
+test "0xF0 BEQ - Branch if Equal" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x00, 0x18, 0x69, 0x01, 0xC9, 0x0A, 0xF0, 0x03, 0x4C, 0x03, 0x80, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 10);
+}
+
+test "0x30 BMI - Branch if Minus" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x00, 0x18, 0x69, 0x10, 0x30, 0x03, 0x4C, 0x03, 0x80, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x80);
+}
+
+test "0xD0 BNE - Branch if Not Equal" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x00, 0x18, 0x69, 0x01, 0xC9, 0x0A, 0xD0, 0xF9, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 10);
+}
+
+test "0x10 BPL - Branch if Positive" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x00, 0x18, 0x69, 0x10, 0x10, 0xFB, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x80);
+}
+
+test "0x50 BVC - Branch if Overflow Clear" {
+    var mem = Memory.init(&[_]u8{
+        0xA9, 0x40, 0x69, 0x40, 0x50, 0xFB, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0x80);
+}
+
+test "0x70 BVS - Branch if Overflow Set" {
+    var mem = Memory.init(&[_]u8{
+        0x18, 0xA9, 0x50, 0x69, 0x50, 0x70, 0x05, 0xA9, 0x00, 0x4C, 0x0E, 0x80, 0xA9, 0xFF, 0x00,
+    });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expect(cpu.registerA == 0xFF);
 }
