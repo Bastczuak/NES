@@ -1582,7 +1582,7 @@ const Cpu = struct {
         cpu.registerA = @as(u8, @truncate(sum));
         cpu.status = cpu.status & ~CARRY_FLAG | if (sum > 0xFF) CARRY_FLAG else 0;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
         cpu.status = cpu.status & ~OVERFLOW_FLAG | if (sign != 0) OVERFLOW_FLAG else 0;
     }
 
@@ -1591,7 +1591,7 @@ const Cpu = struct {
 
         cpu.registerA &= mem.memory[address];
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn ASL(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1601,9 +1601,9 @@ const Cpu = struct {
             mem.memory[cpu.nextAddress(mem, addressingMode)];
 
         cpu.registerA = toShift << 1;
-        cpu.status = cpu.status & ~CARRY_FLAG | if (isBitSet(u8, toShift, 7)) CARRY_FLAG else 0;
+        cpu.status = cpu.status & ~CARRY_FLAG | if (isBitSet(u8, toShift, NEGATIVE_FLAG)) CARRY_FLAG else 0;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     inline fn branch(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1613,19 +1613,19 @@ const Cpu = struct {
     }
 
     pub fn BCC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (!isBitSet(u8, cpu.status, 0)) {
+        if (!isBitSet(u8, cpu.status, CARRY_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
 
     pub fn BCS(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (isBitSet(u8, cpu.status, 0)) {
+        if (isBitSet(u8, cpu.status, CARRY_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
 
     pub fn BEQ(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (isBitSet(u8, cpu.status, 1)) {
+        if (isBitSet(u8, cpu.status, ZERO_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
@@ -1640,19 +1640,19 @@ const Cpu = struct {
     }
 
     pub fn BMI(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (isBitSet(u8, cpu.status, 7)) {
+        if (isBitSet(u8, cpu.status, NEGATIVE_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
 
     pub fn BNE(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (!isBitSet(u8, cpu.status, 1)) {
+        if (!isBitSet(u8, cpu.status, ZERO_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
 
     pub fn BPL(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (!isBitSet(u8, cpu.status, 7)) {
+        if (!isBitSet(u8, cpu.status, NEGATIVE_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
@@ -1661,13 +1661,13 @@ const Cpu = struct {
         cpu.status |= BREAK_COMMAND;
     }
     pub fn BVC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (!isBitSet(u8, cpu.status, 6)) {
+        if (!isBitSet(u8, cpu.status, OVERFLOW_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
 
     pub fn BVS(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        if (isBitSet(u8, cpu.status, 6)) {
+        if (isBitSet(u8, cpu.status, OVERFLOW_FLAG)) {
             Cpu.branch(cpu, mem, addressingMode);
         }
     }
@@ -1695,7 +1695,7 @@ const Cpu = struct {
 
         cpu.status = cpu.status & ~ZERO_FLAG | if (result == 0) ZERO_FLAG else 0;
         cpu.status = cpu.status & ~CARRY_FLAG | if (register.* >= result) CARRY_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, result, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, result, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1713,7 +1713,7 @@ const Cpu = struct {
     inline fn decrement(value: *u8, status: *u8) void {
         value.* -%= 1;
         status.* = status.* & ~ZERO_FLAG | if (value.* == 0) ZERO_FLAG else 0;
-        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, 7)) NEGATIVE_FLAG else 0;
+        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn DEC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1734,13 +1734,13 @@ const Cpu = struct {
         cpu.registerA ^= mem.memory[address];
 
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     inline fn increment(value: *u8, status: *u8) void {
         value.* +%= 1;
         status.* = status.* & ~ZERO_FLAG | if (value.* == 0) ZERO_FLAG else 0;
-        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, 7)) NEGATIVE_FLAG else 0;
+        status.* = status.* & ~NEGATIVE_FLAG | if (isBitSet(u8, value.*, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn INC(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1769,7 +1769,7 @@ const Cpu = struct {
         const address = cpu.nextAddress(mem, addressingMode);
         register.* = mem.memory[address];
         cpu.status = cpu.status & ~ZERO_FLAG | if (register.* == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, register.*, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, register.*, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn LDA(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
@@ -1797,7 +1797,7 @@ const Cpu = struct {
         cpu.registerA |= mem.memory[address];
 
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn PHA(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1868,13 +1868,13 @@ const Cpu = struct {
     pub fn TAX(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerX = cpu.registerA;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerX == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TAY(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerY = cpu.registerA;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerY == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerY, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerY, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TSX(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1884,7 +1884,7 @@ const Cpu = struct {
     pub fn TXA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerA = cpu.registerX;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TXS(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1894,11 +1894,11 @@ const Cpu = struct {
     pub fn TYA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
         cpu.registerA = cpu.registerY;
         cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
-        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, 7)) NEGATIVE_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn interpret(self: *Cpu, mem: *Memory) void {
-        while (!isBitSet(u8, self.status, 4)) {
+        while (!isBitSet(u8, self.status, BREAK_COMMAND)) {
             const opCode = Instruction.getOpCode(mem.memory[self.programCounter]);
             self.programCounter += 1;
             const programCounterState = self.programCounter;
@@ -1960,10 +1960,8 @@ const Cpu = struct {
     }
 };
 
-pub fn isBitSet(comptime Value: type, value: Value, comptime bit: usize) bool {
-    comptime std.debug.assert(bit < @typeInfo(Value).Int.bits);
-
-    return (value & (@as(Value, 1) << @intCast(bit))) != 0;
+pub inline fn isBitSet(comptime Value: type, value: Value, comptime mask: Value) bool {
+    return (value & mask) == mask;
 }
 
 pub fn main() !void {
@@ -1985,8 +1983,8 @@ test "0x29 AND - Bitwise AND with Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0x00);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == true);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0x18 CLC - Clear Carry Flag" {
@@ -1996,7 +1994,7 @@ test "0x18 CLC - Clear Carry Flag" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 0) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.CARRY_FLAG) == false);
 }
 
 test "0xD8 CLD - Clear Decimal Mode Flag" {
@@ -2006,7 +2004,7 @@ test "0xD8 CLD - Clear Decimal Mode Flag" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 3) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.DECIMAL_MODE_FLAG) == false);
 }
 
 test "0x58 CLI - Clear Interrupt Disable" {
@@ -2016,7 +2014,7 @@ test "0x58 CLI - Clear Interrupt Disable" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 2) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.INTERRUPT_DISABLE) == false);
 }
 
 test "0xB8 CLV - Clear Overflow Flag" {
@@ -2026,37 +2024,34 @@ test "0xB8 CLV - Clear Overflow Flag" {
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 6) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.OVERFLOW_FLAG) == false);
 }
 
 test "0x38 SEC - Set Carry Flag" {
-    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var mem = Memory.init(&[_]u8{ 0x38, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = Cpu.CARRY_FLAG;
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 0) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.CARRY_FLAG) == true);
 }
 
 test "0xF8 SED - Set Decimal Flag" {
-    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var mem = Memory.init(&[_]u8{ 0xF8, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = Cpu.DECIMAL_MODE_FLAG;
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 3) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.DECIMAL_MODE_FLAG) == true);
 }
 
 test "0x78 SED - Set Decimal Flag" {
-    var mem = Memory.init(&[_]u8{ 0x68, 0x00 });
+    var mem = Memory.init(&[_]u8{ 0x78, 0x00 });
     var cpu = Cpu.init(&mem);
-    cpu.status = Cpu.INTERRUPT_DISABLE;
 
     cpu.interpret(&mem);
 
-    try std.testing.expect(isBitSet(u8, cpu.status, 2) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.INTERRUPT_DISABLE) == true);
 }
 
 test "0xC9 CMP - Compare with Accumulator" {
@@ -2136,8 +2131,8 @@ test "0xC6 DEC - Decrement Memory" {
     cpu.interpret(&mem);
 
     try std.testing.expect(mem.memory[0x0200] == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0xCA DEX - Decrement X Register" {
@@ -2148,8 +2143,8 @@ test "0xCA DEX - Decrement X Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerX == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0xCA DEY - Decrement Y Register" {
@@ -2160,8 +2155,8 @@ test "0xCA DEY - Decrement Y Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerY == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0x49 EOR - Exclusive OR" {
@@ -2172,8 +2167,8 @@ test "0x49 EOR - Exclusive OR" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0xEE INC - Increment Memory" {
@@ -2184,8 +2179,8 @@ test "0xEE INC - Increment Memory" {
     cpu.interpret(&mem);
 
     try std.testing.expect(mem.memory[0x0200] == 0x01);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xE8 INX - Increment X Register" {
@@ -2195,8 +2190,8 @@ test "0xE8 INX - Increment X Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerX == 1);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xE8 INX - Increment X Register with overflow" {
@@ -2215,8 +2210,8 @@ test "0xC8 INY - Increment Y Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerY == 1);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xA9 LDA - Load Accumulator" {
@@ -2226,8 +2221,8 @@ test "0xA9 LDA - Load Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0x05);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xA5 LDA - Load Accumulator" {
@@ -2238,8 +2233,8 @@ test "0xA5 LDA - Load Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0x55);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xA6 LDX - Load X Register" {
@@ -2250,8 +2245,8 @@ test "0xA6 LDX - Load X Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerX == 0x55);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xA4 LDY - Load Y Register" {
@@ -2262,8 +2257,8 @@ test "0xA4 LDY - Load Y Register" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerY == 0x55);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xAA TAX - Transfer Accumulator to X" {
@@ -2273,8 +2268,8 @@ test "0xAA TAX - Transfer Accumulator to X" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerX == 10);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == false);
 }
 
 test "0xA8 TAY - Transfer Accumulator to Y" {
@@ -2284,8 +2279,8 @@ test "0xA8 TAY - Transfer Accumulator to Y" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerY == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "loads 0xC0 into X and increments by 1" {
@@ -2335,8 +2330,8 @@ test "0x09 ORA - Logical Inclusive OR" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xFF);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0x8A TXA - Transfer X to Accumulator" {
@@ -2347,8 +2342,8 @@ test "0x8A TXA - Transfer X to Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xAA);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0x98 TYA - Transfer Y to Accumulator" {
@@ -2359,8 +2354,8 @@ test "0x98 TYA - Transfer Y to Accumulator" {
     cpu.interpret(&mem);
 
     try std.testing.expect(cpu.registerA == 0xAA);
-    try std.testing.expect(isBitSet(u8, cpu.status, 1) == false);
-    try std.testing.expect(isBitSet(u8, cpu.status, 7) == true);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.ZERO_FLAG) == false);
+    try std.testing.expect(isBitSet(u8, cpu.status, Cpu.NEGATIVE_FLAG) == true);
 }
 
 test "0x4C JMP - Jump" {
