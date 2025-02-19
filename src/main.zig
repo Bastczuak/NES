@@ -1517,9 +1517,11 @@ const Instructions = &[_]Instruction{
 const Memory = struct {
     memory: [0xFFFF]u8,
 
-    const ROM_START = 0x8000;
-    const ROM_END = 0xFFFF;
-    const ROM_PROGRAM_START = 0xFFFC;
+    const ROM_START: u16 = 0x8000;
+    const ROM_END: u16 = 0xFFFF;
+    const ROM_PROGRAM_START: u16 = 0xFFFC;
+    const STACK_START: u16 = 0x0100;
+    const STACK_END: u16 = 0x01FF;
 
     pub fn init(program: []const u8) Memory {
         const program_end = ROM_START + program.len;
@@ -1562,6 +1564,7 @@ const Cpu = struct {
     registerA: u8, // a.k.a acumulator
     registerX: u8,
     registerY: u8,
+    registerS: u8,
 
     pub fn init(mem: *Memory) Cpu {
         return Cpu{
@@ -1570,6 +1573,7 @@ const Cpu = struct {
             .registerA = 0,
             .registerX = 0,
             .registerY = 0,
+            .registerS = 0xFF,
         };
     }
 
@@ -1809,20 +1813,44 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn PHA(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn PHA(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        mem.memory[Memory.STACK_START + cpu.registerS] = cpu.registerA;
+        if (cpu.registerS != 0x00) {
+            cpu.registerS -= 1;
+        } else {
+            std.debug.panic("stack overflow detected!", .{});
+        }
     }
 
-    pub fn PHP(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn PHP(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        mem.memory[Memory.STACK_START + cpu.registerS] = cpu.status;
+        if (cpu.registerS != 0x00) {
+            cpu.registerS -= 1;
+        } else {
+            std.debug.panic("stack overflow detected!", .{});
+        }
     }
 
-    pub fn PLA(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn PLA(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        if (cpu.registerS != 0xFF) {
+            cpu.registerS += 1;
+        } else {
+            std.debug.panic("stack underflow detected!", .{});
+        }
+
+        cpu.registerA = mem.memory[Memory.STACK_START + cpu.registerS];
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerA == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn PLP(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn PLP(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        if (cpu.registerS != 0xFF) {
+            cpu.registerS += 1;
+        } else {
+            std.debug.panic("stack underflow detected!", .{});
+        }
+
+        cpu.status = mem.memory[Memory.STACK_START + cpu.registerS];
     }
 
     pub fn ROL(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1886,8 +1914,10 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerY, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn TSX(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn TSX(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        cpu.registerX = mem.memory[Memory.STACK_START + cpu.registerS];
+        cpu.status = cpu.status & ~ZERO_FLAG | if (cpu.registerX == 0) ZERO_FLAG else 0;
+        cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerX, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
     pub fn TXA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -1896,8 +1926,8 @@ const Cpu = struct {
         cpu.status = cpu.status & ~NEGATIVE_FLAG | if (isBitSet(u8, cpu.registerA, NEGATIVE_FLAG)) NEGATIVE_FLAG else 0;
     }
 
-    pub fn TXS(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn TXS(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        mem.memory[Memory.STACK_START + cpu.registerS] = cpu.registerX;
     }
 
     pub fn TYA(cpu: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -2608,4 +2638,66 @@ test "0x4A LSR - Logical Shift Right" {
 
     try std.testing.expectEqual(0x7F, cpu.registerA);
     try std.testing.expectEqual(0b0011_0001, cpu.status);
+}
+
+test "0x48 PHA - Push Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0x48, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0x0FF, mem.memory[0x01FF]);
+    try std.testing.expectEqual(0xFE, cpu.registerS);
+}
+
+test "0x08 PHP - Push Processor Status" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0x48, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0x0FF, mem.memory[0x01FF]);
+    try std.testing.expectEqual(0xFE, cpu.registerS);
+}
+
+test "0x68 PLA - Pull Accumulator" {
+    var mem = Memory.init(&[_]u8{ 0xA9, 0xFF, 0x48, 0xA9, 0x00, 0x68, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0x0FF, cpu.registerA);
+    try std.testing.expectEqual(0xFF, cpu.registerS);
+    try std.testing.expectEqual(0b1011_0000, cpu.status);
+}
+
+test "0x28 PLP - Pull Processor Status" {
+    var mem = Memory.init(&[_]u8{ 0x38, 0x08, 0x18, 0x28, 0x00 });
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0b0011_0001, cpu.status);
+}
+
+test "0xBA TSX - Tansfer Stack Pointer to X" {
+    var mem = Memory.init(&[_]u8{ 0xBA, 0x00 });
+    mem.memory[0x01FF] = 0xFF;
+    var cpu = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0xFF, cpu.registerX);
+    try std.testing.expectEqual(0xFF, cpu.registerS);
+}
+
+test "0x9A TSX - Tansfer X to Stack Pointer" {
+    var mem = Memory.init(&[_]u8{ 0x9A, 0x00 });
+    var cpu = Cpu.init(&mem);
+    cpu.registerX = 0xFF;
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0xFF, mem.memory[0x01FF]);
+    try std.testing.expectEqual(0xFF, cpu.registerS);
 }
