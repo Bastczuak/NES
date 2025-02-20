@@ -1599,6 +1599,7 @@ const Cpu = struct {
     }
 
     pub fn ASL(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        // todo
         const toShift = if (addressingMode == AddressingMode.Accumulator)
             cpu.registerA
         else
@@ -1704,15 +1705,15 @@ const Cpu = struct {
     }
 
     pub fn CMP(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        return compare(cpu, mem, addressingMode, &cpu.registerA);
+        compare(cpu, mem, addressingMode, &cpu.registerA);
     }
 
     pub fn CPX(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        return compare(cpu, mem, addressingMode, &cpu.registerX);
+        compare(cpu, mem, addressingMode, &cpu.registerX);
     }
 
     pub fn CPY(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
-        return compare(cpu, mem, addressingMode, &cpu.registerY);
+        compare(cpu, mem, addressingMode, &cpu.registerY);
     }
 
     inline fn decrement(value: *u8, status: *u8) void {
@@ -1766,8 +1767,16 @@ const Cpu = struct {
         cpu.programCounter = address;
     }
 
-    pub fn JSR(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn JSR(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        mem.writeU16(Memory.STACK_START + cpu.registerS, cpu.programCounter + 1);
+
+        if (cpu.registerS != 0x00) {
+            cpu.registerS -= 2;
+        } else {
+            std.debug.panic("stack overflow detected!", .{});
+        }
+
+        cpu.programCounter = nextAddress(cpu, mem, addressingMode);
     }
 
     inline fn load(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode, register: *u8) void {
@@ -1790,6 +1799,7 @@ const Cpu = struct {
     }
 
     pub fn LSR(cpu: *Cpu, mem: *Memory, addressingMode: AddressingMode) void {
+        // todo
         const toShift = if (addressingMode == AddressingMode.Accumulator)
             cpu.registerA
         else
@@ -1865,8 +1875,14 @@ const Cpu = struct {
         return;
     }
 
-    pub fn RTS(_: *Cpu, _: *Memory, _: AddressingMode) void {
-        return;
+    pub fn RTS(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
+        if (cpu.registerS != 0xFF) {
+            cpu.registerS += 2;
+        } else {
+            std.debug.panic("stack underflow detected!", .{});
+        }
+
+        cpu.programCounter = mem.readU16(Memory.STACK_START + cpu.registerS) + 1;
     }
 
     pub fn SBC(_: *Cpu, _: *Memory, _: AddressingMode) void {
@@ -2700,4 +2716,16 @@ test "0x9A TSX - Tansfer X to Stack Pointer" {
 
     try std.testing.expectEqual(0xFF, mem.memory[0x01FF]);
     try std.testing.expectEqual(0xFF, cpu.registerS);
+}
+
+test "0x20 JSR - Jump to Subroutine" {
+    var mem = Memory.init(&[_]u8{
+        0x20, 0x09, 0x80, 0x20, 0x0c, 0x80, 0x20, 0x12, 0x80, 0xa2, 0x00, 0x60, 0xe8, 0xe0, 0x05, 0xd0,
+        0xfb, 0x60, 0x00,
+    });
+    var cpu  = Cpu.init(&mem);
+
+    cpu.interpret(&mem);
+
+    try std.testing.expectEqual(0x05, cpu.registerX);
 }
