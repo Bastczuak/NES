@@ -1771,7 +1771,7 @@ const Cpu = struct {
         mem.writeU16(Memory.STACK_START + cpu.registerS, cpu.programCounter + 1);
 
         if (cpu.registerS != 0x00) {
-            cpu.registerS -= 2;
+            cpu.registerS -= 2; // because the programm counter is 2 byte long
         } else {
             std.debug.panic("stack overflow detected!", .{});
         }
@@ -1877,7 +1877,7 @@ const Cpu = struct {
 
     pub fn RTS(cpu: *Cpu, mem: *Memory, _: AddressingMode) void {
         if (cpu.registerS != 0xFF) {
-            cpu.registerS += 2;
+            cpu.registerS += 2; // because the programm counter is 2 byte long
         } else {
             std.debug.panic("stack underflow detected!", .{});
         }
@@ -2723,7 +2723,7 @@ test "0x20 JSR - Jump to Subroutine" {
         0x20, 0x09, 0x80, 0x20, 0x0c, 0x80, 0x20, 0x12, 0x80, 0xa2, 0x00, 0x60, 0xe8, 0xe0, 0x05, 0xd0,
         0xfb, 0x60, 0x00,
     });
-    var cpu  = Cpu.init(&mem);
+    var cpu = Cpu.init(&mem);
 
     cpu.interpret(&mem);
 
